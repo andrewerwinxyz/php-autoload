@@ -1,37 +1,44 @@
 <?php
-    
-Autoloader::instance()->loadClasses();
+
+Autoloader::autoload()->loadClasses();
 
 class Autoloader
 {
-    private static $instance;
+    private static $autoload;
     private static $namespaces = [];
 
     private function __construct()
     {
-        self::$namespaces = [
-            'Application\\' => ['../Application/'],
-            'Framework\\'   => ['../Framework/']
-        ];
+        global $namespaces;
+
+        $namespaces['Application\\'] = '../Application/';
+        $namespaces['Framework\\'] = '../Framework/';
+        $namespaces['Twig\\'] = '../Twig/';
     }
 
-    public static function instance(): Autoloader
+    public static function autoload(): Autoloader
     {
-        if(self::$instance === null)
+        if(self::$autoload === null)
         {
-            self::$instance = new Autoloader;
+            self::$autoload = new Autoloader;
         }
 
-        return self::$instance;
+        return self::$autoload;
     }
 
-    public static function loadClasses()
+    public static function loadClasses(): bool
     {
-        spl_autoload_register('self::load');
+        if(!spl_autoload_register('self::load'))
+        {
+            return false;
+        }
+
+        return true;
     }
 
     protected static function load(string $ns): bool
     {
+        global $namespaces;
         $namespace = $ns;
 
         while($pos = strrpos($namespace, '\\')) 
@@ -39,17 +46,14 @@ class Autoloader
             $namespace = substr($ns, 0, $pos + 1);
             $class = substr($ns, $pos + 1);
             
-            if(isset(self::$namespaces[$namespace]))
-            {
-                foreach(self::$namespaces[$namespace] as $dir) 
+            if(isset($namespaces[$namespace]))
+            {                
+                $file = $namespaces[$namespace].str_replace('\\', '/', $class).'.php';
+    
+                if(file_exists($file))
                 {
-                    $file = $dir.str_replace('\\', '/', $class).'.php';
-        
-                    if(file_exists($file))
-                    {
-                        require($file);
-                        return true;
-                    }
+                    require($file);
+                    return true;
                 }
             }
     
